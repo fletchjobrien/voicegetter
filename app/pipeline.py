@@ -189,11 +189,16 @@ def download(url: str, workdir: Path, rep: Reporter) -> tuple[Path, str]:
         rep.log("WARNING: no JavaScript runtime (Deno) found. YouTube downloads can fail.")
 
     rep.progress(0.0, "Getting video info")
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        if info.get("_type") == "playlist" and info.get("entries"):
-            info = next(e for e in info["entries"] if e)
-        path = Path(ydl.prepare_filename(info))
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            if info.get("_type") == "playlist" and info.get("entries"):
+                info = next(e for e in info["entries"] if e)
+            path = Path(ydl.prepare_filename(info))
+    except yt_dlp.utils.DownloadError as e:
+        if isinstance(getattr(e, "exc_info", (None, None))[1], Cancelled):
+            raise Cancelled() from e
+        raise RuntimeError(explain_download_error(str(e))) from e
     if not path.exists():
         found = sorted(workdir.glob("source.*"))
         if not found:
@@ -202,6 +207,24 @@ def download(url: str, workdir: Path, rep: Reporter) -> tuple[Path, str]:
     title = info.get("title") or "voice"
     rep.log(f"Downloaded: {title} ({fmt_time(info.get('duration') or 0)})")
     return path, title
+
+
+def explain_download_error(msg: str) -> str:
+    """Make common yt-dlp errors easier to understand."""
+    msg = msg.replace("ERROR: ", "").split("; please report this issue")[0].strip()
+    low = msg.lower()
+    if "confirm you" in low and "bot" in low:
+        hint = ("YouTube blocked this server. Give yt-dlp your YouTube cookies (VOICEGETTER_COOKIES, "
+                "see README), or upload the audio file instead of a link.")
+    elif any(k in low for k in ("sign in", "age-restricted", "age restricted", "members-only", "private video")):
+        hint = "This video needs a login. Use cookies (see README) or upload the file."
+    elif "proxy" in low or "unable to connect" in low or "timed out" in low:
+        hint = "The server cannot connect to YouTube. Check the internet connection of the server."
+    elif "javascript" in low or "n challenge" in low or "signature" in low:
+        hint = "Update yt-dlp (pip install -U \"yt-dlp[default]\") and make sure Deno is installed."
+    else:
+        hint = "Check the link. If the link is correct, update yt-dlp (pip install -U \"yt-dlp[default]\")."
+    return f"Download failed. {hint}\nDetails: {msg[:400]}"
 
 
 def to_wav(src: Path, dst: Path, rep: Reporter) -> float:
@@ -390,7 +413,7 @@ def choose_centroid(emb: np.ndarray, wins: list[Window], audio16: Callable[[Wind
         info["warning"] = f"No {opt.target} voice found; used the largest voice."
     share, members, pitch = pick
     c = emb[members].mean(0)
-    info.update({"mode": "auto", "speaker_share": round(share, 3), "speaker_pitch_hz": round(pitch, 1),
+    info.update({"mode": "auto", "speaker_share": round(float(share), 3), "speaker_pitch_hz": round(float(pitch), 1),
                  "voice_groups": len(rows)})
     return c / np.linalg.norm(c), info
 
@@ -555,7 +578,7 @@ def process(source: str | Path, workdir: Path, opt: Options, rep: Reporter, titl
 
     segs = keep_segments(emb, wins, regions, centroid, opt)
     kept = sum(e - s for s, e in segs)
-    rep.log(f"Kept {fmt_time(kept)} of her voice in {len(segs)} clips")
+    rep.log(f"Kept {fmt_time(kept)} of the target voice in {len(segs)} clips")
     if not segs:
         raise RuntimeError("No clips matched the speaker. Try a lower strictness or a reference time range.")
 
@@ -565,7 +588,7 @@ def process(source: str | Path, workdir: Path, opt: Options, rep: Reporter, titl
         "title": title,
         "duration_sec": round(duration, 1),
         "speech_sec": round(speech_sec, 1),
-        "kept_sec": round(kept, 1),
+        "kept_sec": round(float(kept), 1),
         "clips": len(segs),
         **info,
     }

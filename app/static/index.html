@@ -36,7 +36,7 @@
   }
   input[type=file] { font-size: .9rem; color: var(--muted); max-width: 100%; }
   input[type=range] { width: 100%; accent-color: var(--accent); }
-  .row { display: flex; gap: 10px; }
+  .row { display: flex; gap: 10px; align-items: flex-end; }
   .row > * { flex: 1; min-width: 0; }
   .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; margin: 14px 0 0; }
   .check input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--accent); }
@@ -66,7 +66,7 @@
   .stat span { color: var(--muted); font-size: .8rem; }
   pre { white-space: pre-wrap; font-size: .78rem; color: var(--muted); background: var(--bg);
         padding: 10px; border-radius: 10px; max-height: 220px; overflow: auto; margin: 8px 0 0; }
-  .warn { color: var(--bad); font-size: .9rem; margin-top: 8px; }
+  .warn { color: var(--bad); font-size: .9rem; margin-top: 8px; white-space: pre-line; overflow-wrap: anywhere; }
   .empty { color: var(--muted); text-align: center; font-size: .9rem; }
 </style>
 </head>
@@ -107,7 +107,7 @@
       <div class="row">
         <div><label for="min_clip_sec">Shortest clip (s)</label>
           <input type="text" id="min_clip_sec" name="min_clip_sec" value="1.0" inputmode="decimal"></div>
-        <div><label for="gap_sec">Gap between clips (s)</label>
+        <div><label for="gap_sec">Gap (s)</label>
           <input type="text" id="gap_sec" name="gap_sec" value="0.3" inputmode="decimal"></div>
       </div>
 
@@ -201,7 +201,7 @@ function render(job) {
     body += `
       <audio controls preload="none" src="${fileUrl(job.id, "mp3", true)}"></audio>
       <div class="stats">
-        <div class="stat"><b>${fmt(st.kept_sec)}</b><span>her voice kept</span></div>
+        <div class="stat"><b>${fmt(st.kept_sec)}</b><span>voice kept</span></div>
         <div class="stat"><b>${st.clips ?? "-"}</b><span>clips</span></div>
         <div class="stat"><b>${fmt(st.duration_sec)}</b><span>video length</span></div>
         <div class="stat"><b>${st.speaker_pitch_hz ? Math.round(st.speaker_pitch_hz) + " Hz" : "ref."}</b><span>voice pitch</span></div>
