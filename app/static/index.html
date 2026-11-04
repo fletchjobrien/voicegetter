@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16131c">
+<title>VoiceGetter</title>
+<style>
+  :root {
+    --bg: #f6f4f9; --card: #ffffff; --text: #1d1a24; --muted: #6b6578; --line: #e3dfea;
+    --accent: #7c4dff; --accent-text: #ffffff; --ok: #1f9d55; --bad: #d64545; --bar: #ece8f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16131c; --card: #211d29; --text: #f1eef6; --muted: #a39cb2; --line: #352f40;
+      --accent: #a585ff; --accent-text: #16131c; --ok: #4cd08a; --bad: #ff7a7a; --bar: #2d2737;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px 48px;
+  }
+  main { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 8px 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 18px; font-size: .95rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  label { display: block; font-weight: 600; margin: 12px 0 6px; font-size: .95rem; }
+  label:first-child { margin-top: 0; }
+  .hint { color: var(--muted); font-size: .85rem; font-weight: 400; }
+  input[type=url], input[type=text], select {
+    width: 100%; font: inherit; font-size: 16px; padding: 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  }
+  input[type=file] { font-size: .9rem; color: var(--muted); max-width: 100%; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; min-width: 0; }
+  .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; margin: 14px 0 0; }
+  .check input { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--accent); }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 4px 0; }
+  button, .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 12px 16px;
+    background: var(--accent); color: var(--accent-text); cursor: pointer; text-decoration: none;
+  }
+  button.big { width: 100%; margin-top: 16px; padding: 14px; font-size: 1.05rem; }
+  button.ghost, .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; }
+  .or { text-align: center; color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
+  .err { color: var(--bad); margin-top: 10px; font-size: .95rem; }
+  .job h3 { margin: 0 0 4px; font-size: 1rem; overflow-wrap: anywhere; }
+  .meta { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+  .bar { height: 10px; background: var(--bar); border-radius: 99px; overflow: hidden; margin: 12px 0 6px; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .6s; }
+  .state-done .bar > div { background: var(--ok); }
+  .state-error .bar > div { background: var(--bad); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  audio { width: 100%; margin-top: 12px; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .stat { background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 1.05rem; }
+  .stat span { color: var(--muted); font-size: .8rem; }
+  pre { white-space: pre-wrap; font-size: .78rem; color: var(--muted); background: var(--bg);
+        padding: 10px; border-radius: 10px; max-height: 220px; overflow: auto; margin: 8px 0 0; }
+  .warn { color: var(--bad); font-size: .9rem; margin-top: 8px; }
+  .empty { color: var(--muted); text-align: center; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🎙️ VoiceGetter</h1>
+  <p class="sub">Paste a YouTube link. Get only the main speaker's voice as an MP3.</p>
+
+  <form class="card" id="form">
+    <label for="url">YouTube link</label>
+    <input type="url" id="url" name="url" placeholder="https://youtube.com/watch?v=..." inputmode="url" autocomplete="off">
+    <p class="or">or upload an audio/video file</p>
+    <input type="file" id="file" name="file" accept="audio/*,video/*">
+
+    <label for="target">Whose voice?</label>
+    <select id="target" name="target">
+      <option value="female">Main female voice</option>
+      <option value="male">Main male voice</option>
+      <option value="any">Main voice (any)</option>
+    </select>
+
+    <label class="check"><input type="checkbox" name="separate" id="separate" checked>
+      <span>Remove game sound and music<br><span class="hint">Cleaner voice. Slow without a GPU.</span></span></label>
+
+    <details>
+      <summary>Advanced</summary>
+      <label>Reference time range <span class="hint">(optional, best accuracy)</span></label>
+      <div class="hint">A part of the video where only she talks, for example 12:30 to 13:00.</div>
+      <div class="row" style="margin-top:6px">
+        <input type="text" name="ref_start" placeholder="Start 12:30" inputmode="numeric">
+        <input type="text" name="ref_end" placeholder="End 13:00" inputmode="numeric">
+      </div>
+
+      <label for="strictness">Strictness: <span id="sv">0.50</span>
+        <span class="hint">— higher = cleaner but less audio</span></label>
+      <input type="range" id="strictness" name="strictness" min="0.3" max="0.8" step="0.05" value="0.5">
+
+      <div class="row">
+        <div><label for="min_clip_sec">Shortest clip (s)</label>
+          <input type="text" id="min_clip_sec" name="min_clip_sec" value="1.0" inputmode="decimal"></div>
+        <div><label for="gap_sec">Gap between clips (s)</label>
+          <input type="text" id="gap_sec" name="gap_sec" value="0.3" inputmode="decimal"></div>
+      </div>
+
+      <label class="check"><input type="checkbox" name="make_zip" id="make_zip">
+        <span>Also make a ZIP of separate WAV clips<br><span class="hint">Useful for some voice-training tools.</span></span></label>
+    </details>
+
+    <button class="big" type="submit" id="go">Get voice</button>
+    <div class="err" id="formErr"></div>
+  </form>
+
+  <div id="jobs"></div>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+let password = store.get("vg_pw") || "";
+
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({}, opts.headers, password ? { "x-password": password } : {});
+  const r = await fetch(path, opts);
+  if (r.status === 401) {
+    password = prompt("Password:") || "";
+    store.set("vg_pw", password);
+    if (password) return api(path, opts);
+  }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || data.detail || r.statusText);
+  return data;
+}
+
+const fileUrl = (id, kind, play) =>
+  `/api/jobs/${id}/${kind}?${new URLSearchParams({ ...(password ? { key: password } : {}), ...(play ? { play: 1 } : {}) })}`;
+
+$("#strictness").oninput = (e) => ($("#sv").textContent = (+e.target.value).toFixed(2));
+
+$("#form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("#formErr").textContent = "";
+  const fd = new FormData(e.target);
+  fd.set("separate", $("#separate").checked);
+  fd.set("make_zip", $("#make_zip").checked);
+  if (!$("#file").files.length) fd.delete("file");
+  $("#go").disabled = true;
+  $("#go").textContent = $("#file").files.length ? "Uploading..." : "Starting...";
+  try {
+    await api("/api/jobs", { method: "POST", body: fd });
+    $("#url").value = "";
+    $("#file").value = "";
+    refresh();
+  } catch (err) {
+    $("#formErr").textContent = err.message;
+  } finally {
+    $("#go").disabled = false;
+    $("#go").textContent = "Get voice";
+  }
+};
+
+function fmt(sec) {
+  sec = Math.round(sec || 0);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h ? `${h}h ${m}m` : m ? `${m}m ${s}s` : `${s}s`;
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const openLogs = new Set();
+const rendered = {};
+
+function render(job) {
+  let el = document.getElementById("job-" + job.id);
+  const key = JSON.stringify([job.state, job.progress, job.step, job.log.length, job.queue_pos]);
+  if (el && rendered[job.id] === key) return el;
+  rendered[job.id] = key;
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "job-" + job.id;
+    el.className = "card job";
+  }
+  const pct = Math.round(job.progress * 100);
+  const st = job.stats || {};
+  let body = `
+    <h3>${esc(job.title || job.source)}</h3>
+    <div class="meta">${esc(job.state === "queued" && job.queue_pos > 1 ? `Waiting — #${job.queue_pos} in queue` : job.step)}${job.state === "running" ? ` · ${pct}%` : ""}</div>
+    <div class="bar"><div style="width:${job.state === "error" ? 100 : pct}%"></div></div>`;
+  if (job.state === "error") body += `<div class="warn">${esc(job.error)}</div>`;
+  if (job.state === "done") {
+    body += `
+      <audio controls preload="none" src="${fileUrl(job.id, "mp3", true)}"></audio>
+      <div class="stats">
+        <div class="stat"><b>${fmt(st.kept_sec)}</b><span>her voice kept</span></div>
+        <div class="stat"><b>${st.clips ?? "-"}</b><span>clips</span></div>
+        <div class="stat"><b>${fmt(st.duration_sec)}</b><span>video length</span></div>
+        <div class="stat"><b>${st.speaker_pitch_hz ? Math.round(st.speaker_pitch_hz) + " Hz" : "ref."}</b><span>voice pitch</span></div>
+      </div>
+      ${st.warning ? `<div class="warn">${esc(st.warning)}</div>` : ""}`;
+  }
+  body += `<div class="actions">`;
+  if (job.state === "done") {
+    body += `<a class="btn" href="${fileUrl(job.id, "mp3")}">⬇ MP3</a>`;
+    if (job.has_zip) body += `<a class="btn ghost" href="${fileUrl(job.id, "zip")}">⬇ ZIP clips</a>`;
+  }
+  if (job.state === "running" || job.state === "queued")
+    body += `<button class="ghost" data-act="cancel">Cancel</button>`;
+  else body += `<button class="ghost" data-act="delete">Remove</button>`;
+  body += `<button class="ghost" data-act="log">${openLogs.has(job.id) ? "Hide" : "Show"} log</button></div>`;
+  if (openLogs.has(job.id)) body += `<pre>${esc(job.log.join("\n") || "No log yet")}</pre>`;
+
+  const audio = el.querySelector("audio");
+  const playing = audio && !audio.paused;
+  if (playing) return el; // Do not interrupt playback
+  el.className = `card job state-${job.state}`;
+  el.innerHTML = body;
+  el.querySelectorAll("button[data-act]").forEach((b) => (b.onclick = () => act(job.id, b.dataset.act)));
+  return el;
+}
+
+async function act(id, what) {
+  if (what === "log") { openLogs.has(id) ? openLogs.delete(id) : openLogs.add(id); delete rendered[id]; return refresh(); }
+  if (what === "delete" && !confirm("Remove this job and its files?")) return;
+  try {
+    await api(`/api/jobs/${id}${what === "cancel" ? "/cancel" : ""}`, { method: what === "cancel" ? "POST" : "DELETE" });
+  } catch (e) { alert(e.message); }
+  refresh();
+}
+
+let timer;
+async function refresh() {
+  clearTimeout(timer);
+  try {
+    const list = await api("/api/jobs");
+    const box = $("#jobs");
+    const ids = new Set(list.map((j) => "job-" + j.id));
+    [...box.children].forEach((c) => !ids.has(c.id) && c.remove());
+    list.forEach((job, i) => {
+      const el = render(job);
+      if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
+    });
+    if (!list.length) box.innerHTML = `<p class="empty">No jobs yet.</p>`;
+    const busy = list.some((j) => j.state === "running" || j.state === "queued");
+    timer = setTimeout(refresh, busy ? 2000 : 10000);
+  } catch (e) {
+    timer = setTimeout(refresh, 5000);
+  }
+}
+document.addEventListener("visibilitychange", () => !document.hidden && refresh());
+refresh();
+</script>
+</body>
+</html>

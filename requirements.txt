@@ -1,0 +1,21 @@
+# PyTorch: for an NVIDIA GPU, install the CUDA build first (see README), then this file.
+# torch/torchaudio are pinned to 2.8: torchaudio 2.9 removed functions that SpeechBrain 1.0.x calls.
+torch==2.8.0
+torchaudio==2.8.0
+
+demucs==4.0.1          # Removes music and game sound (keeps the voice)
+speechbrain>=1.0.3,<2  # Speaker embeddings (ECAPA-TDNN)
+silero-vad>=5.1        # Finds where people talk
+yt-dlp[default]        # Downloads from YouTube
+deno                   # JavaScript runtime that yt-dlp needs for YouTube (official PyPI build)
+
+numpy
+scipy
+scikit-learn
+soundfile
+librosa
+imageio-ffmpeg         # Fallback ffmpeg if ffmpeg is not installed
+
+fastapi
+uvicorn
+python-multipart
