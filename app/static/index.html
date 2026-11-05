@@ -129,6 +129,13 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
 let password = store.get("vg_pw") || "";
+// A link like https://host/#key=PASSWORD logs in automatically (the Colab notebook makes such links).
+const hashKey = new URLSearchParams(location.hash.slice(1)).get("key");
+if (hashKey) {
+  password = hashKey;
+  store.set("vg_pw", hashKey);
+  history.replaceState(null, "", location.pathname + location.search);
+}
 
 async function api(path, opts = {}) {
   opts.headers = Object.assign({}, opts.headers, password ? { "x-password": password } : {});

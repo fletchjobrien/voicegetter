@@ -19,18 +19,18 @@ No accounts or API keys are necessary. The models download automatically the fir
 
 ## Option A: Google Colab (phone only, free GPU)
 
-Use this if you do not have a computer with an NVIDIA GPU.
+Use this if you do not have a computer with an NVIDIA GPU. It works from a phone.
 
-1. Open `colab/VoiceGetter.ipynb` in [Google Colab](https://colab.research.google.com/) (File → Upload notebook, or open it from GitHub).
-2. Select **Runtime → Change runtime type → T4 GPU**.
-3. This repository is private. Make a GitHub token that can read it ([fine-grained token](https://github.com/settings/personal-access-tokens), "Contents: read-only"). In Colab, click the key icon 🔑 and add a secret named `GITHUB_TOKEN` with the token.
-4. Run cell 1 (install), then cell 2 (start).
-5. Cell 2 shows a `trycloudflare.com` link and a password. Open the link on your phone.
+1. Open the notebook in Colab with the **Open in Colab** link (see [One-click link](#one-click-link)).
+2. Tap ▶ on the cell. If Colab says "This notebook was not authored by Google", tap **Run anyway**.
+3. After about 5 minutes, the cell shows an **Open VoiceGetter** button. Tap it. The link includes the password, so you do not have to type it.
+
+The notebook has all the app code in it. It does not need a GitHub token. It selects a T4 GPU automatically.
 
 Keep the Colab tab open. Colab stops a session after some time. See the [Colab FAQ](https://research.google.com/colaboratory/faq.html) for the limits.
 
 **YouTube can block Colab.** YouTube often blocks downloads from cloud servers with the message "Sign in to confirm you're not a bot". If this occurs:
-- Export your YouTube cookies to a `cookies.txt` file and upload it in cell 2 (set `UPLOAD_COOKIES`). The yt-dlp wiki tells you how: [How do I pass cookies to yt-dlp](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp). Use a second Google account, not your main account.
+- Export your YouTube cookies to a `cookies.txt` file and upload it (turn on `UPLOAD_COOKIES` in the cell, then tap ▶ again). The yt-dlp wiki tells you how: [How do I pass cookies to yt-dlp](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp). Use a second Google account, not your main account.
 - Or upload the audio/video file on the web page instead of a link.
 
 ## Option B: Your own computer (best for many videos)
@@ -126,6 +126,15 @@ The server does one job at a time. Other jobs wait in a queue.
 - **"no GPU found - this will be slow"**: on Windows, delete `.venv` and run `run.bat` again with the NVIDIA driver installed. On Colab, select a GPU runtime.
 - **Out of memory on the GPU**: close other programs that use the GPU.
 
+## Changing the code
+
+The Colab notebook has a copy of the app code in it. After you change `app/`, `cli.py` or `requirements.txt`, build the notebook again:
+
+```bash
+python tools/build_colab.py          # rebuild colab/VoiceGetter.ipynb
+python tools/build_colab.py --check  # check that the notebook is up to date
+```
+
 ## Files
 
 ```
@@ -133,6 +142,6 @@ app/main.py          Web server (FastAPI) and job queue
 app/pipeline.py      Audio processing
 app/static/index.html  Phone web page
 cli.py               Command-line version
-colab/VoiceGetter.ipynb  Google Colab notebook
+colab/VoiceGetter.ipynb  Google Colab notebook (built by tools/build_colab.py)
 run.sh / run.bat     Start scripts
 ```
