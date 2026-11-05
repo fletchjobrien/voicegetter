@@ -138,7 +138,9 @@ Run 'Updating pip' $VPy @('-m', 'pip', 'install', '--upgrade', 'pip', '--quiet')
 
 $HasNvidia = [bool](Get-CimInstance Win32_VideoController | Where-Object { $_.Name -match 'NVIDIA' })
 if ($HasNvidia) {
-    Info 'NVIDIA GPU found: installing the GPU version of PyTorch...'
+    Info 'NVIDIA GPU found: installing the GPU version of PyTorch (3.5 GB)...'
+    Info 'After the download reaches 100%, the window shows nothing for 5-15 minutes while it unpacks.'
+    Info 'That is normal. Do not close this window.'
     Run 'Installing PyTorch (GPU)' $VPy @('-m', 'pip', 'install', 'torch==2.8.0', 'torchaudio==2.8.0',
         '--index-url', 'https://download.pytorch.org/whl/cu128')
 } else {
