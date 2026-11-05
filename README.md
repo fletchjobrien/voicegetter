@@ -17,6 +17,14 @@ The video is processed in 5-minute chunks, so a 2+ hour video does not need a lo
 
 No accounts or API keys are necessary. The models download automatically the first time (about 400 MB).
 
+## One-click link
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fletchjobrien/voicegetter/blob/3d0f8c0d1cd925e781e54f3e562a55e00625bc7c/colab/VoiceGetter.ipynb)
+
+This link opens the notebook of a fixed version (commit). After you change the code, make a new link: replace the commit ID in the link with the new commit ID.
+
+This repository is private. The first time, Colab can ask you to **Authorize with GitHub** so that it can read the notebook. If you make the repository public, this step is not necessary.
+
 ## Option A: Google Colab (phone only, free GPU)
 
 Use this if you do not have a computer with an NVIDIA GPU. It works from a phone.
