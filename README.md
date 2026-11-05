@@ -2,7 +2,7 @@
 
 VoiceGetter takes a YouTube link and gives you an MP3 that has only the voice of the main speaker. It is made for long (2+ hour) gameplay videos, to get clean voice data to train a voice model.
 
-You control it from a web page on your phone. The processing runs on a server: Cloudflare (always-on link), your own PC, or Google Colab (free).
+You control it from a web page on your phone. The processing runs on your Windows PC (easiest, see below), on Cloudflare, or on Google Colab.
 
 ## How it works
 
@@ -16,6 +16,26 @@ You control it from a web page on your phone. The processing runs on a server: C
 The video is processed in 5-minute chunks, so a 2+ hour video does not need a lot of memory.
 
 No AI accounts or API keys are necessary. The models download automatically (about 400 MB).
+
+## Easiest: Windows PC (one-click installer)
+
+Best choice if you have a Windows PC with an NVIDIA GPU. YouTube does not block home internet connections, so you do not need cookies.
+
+1. On the PC, download the code: [ZIP of this branch](https://github.com/fletchjobrien/voicegetter/archive/refs/heads/claude/youtube-audio-extractor-077uox.zip) (sign in to GitHub first; the repository is private).
+2. Right-click the ZIP → **Extract All** → **Extract**.
+3. In the extracted folder, double-click **`INSTALL-WINDOWS.bat`**. If Windows shows a blue "Windows protected your PC" box, click **More info → Run anyway**.
+4. Answer the questions (press Enter for "yes"). Click **Yes** when Windows asks for permission.
+5. When it is done (10–20 minutes), a page with your phone link and a QR code opens. Point your phone camera at the QR code. The page is also saved on the desktop.
+
+The installer:
+- installs Python 3.12 if necessary, and the GPU version of PyTorch if an NVIDIA GPU exists;
+- installs VoiceGetter to `%LOCALAPPDATA%\VoiceGetter` and downloads the AI models;
+- adds a Windows Firewall rule so that your phone can connect;
+- starts VoiceGetter hidden, now and every time you sign in to Windows;
+- can stop the PC from sleeping while plugged in (it asks first). While a job runs, VoiceGetter also keeps the PC awake;
+- can set up [Tailscale](https://tailscale.com/) (free) so the link also works away from home. Install the Tailscale app on your phone and sign in with the same account.
+
+To update: download the new ZIP and run `INSTALL-WINDOWS.bat` again. To remove: run `UNINSTALL-WINDOWS.bat`. The log is in `%LOCALAPPDATA%\VoiceGetter\server.log`.
 
 ## Option A: Cloudflare (permanent link, no computer needed)
 
@@ -196,4 +216,6 @@ Dockerfile           Container image (CPU) for Cloudflare or plain Docker
 cloudflare/          Cloudflare Worker + Container config (wrangler.jsonc, src/index.ts)
 .github/workflows/deploy-cloudflare.yml  One-tap deploy to Cloudflare
 tools/build_colab.py Builds the Colab notebook
+INSTALL-WINDOWS.bat  One-click Windows installer (windows/install.ps1)
+UNINSTALL-WINDOWS.bat  Removes VoiceGetter from Windows
 ```

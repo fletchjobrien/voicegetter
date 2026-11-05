@@ -7,6 +7,12 @@ Then open http://<this-computer-ip>:8000 on your phone.
 from __future__ import annotations
 
 import os
+import sys
+
+# When started hidden (Windows autostart uses pythonw.exe), there is no console: write output to a log file.
+if os.environ.get("VOICEGETTER_LOG"):
+    _log = open(os.environ["VOICEGETTER_LOG"], "a", buffering=1, encoding="utf-8")
+    sys.stdout = sys.stderr = _log
 import queue
 import shutil
 import threading
@@ -47,6 +53,18 @@ def public(job: dict) -> dict:
     return out
 
 
+def keep_awake(on: bool) -> None:
+    """On Windows, stop the PC from going to sleep while a job runs."""
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+        ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | (ES_SYSTEM_REQUIRED if on else 0))
+    except Exception:
+        pass
+
+
 def worker() -> None:
     while True:
         jid = work.get()
@@ -54,6 +72,7 @@ def worker() -> None:
         if not job or job["state"] == "cancelled":
             continue
         job["state"] = "running"
+        keep_awake(True)
 
         def progress(frac: float, step: str) -> None:
             job["progress"] = round(max(job["progress"], min(frac, 1.0)), 4)
@@ -81,6 +100,7 @@ def worker() -> None:
             log("ERROR: " + (str(e) or e.__class__.__name__))
             traceback.print_exc()
         finally:
+            keep_awake(False)
             if job.get("upload"):
                 Path(job["upload"]).unlink(missing_ok=True)
 
