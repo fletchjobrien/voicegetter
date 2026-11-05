@@ -171,7 +171,13 @@ def download(url: str, workdir: Path, rep: Reporter) -> tuple[Path, str]:
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
+        "noprogress": True,          # Progress goes to the web page, not the log
         "progress_hooks": [hook],
+        # YouTube can stall a long download. Download in 10 MB pieces and retry, so it continues.
+        "http_chunk_size": 10 * 1024 * 1024,
+        "retries": 20,
+        "fragment_retries": 20,
+        "socket_timeout": 30,
         "ffmpeg_location": ffmpeg_bin(),
     }
     cookies = os.environ.get("VOICEGETTER_COOKIES")

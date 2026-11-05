@@ -200,13 +200,20 @@ sh.Run "$q$VPyw$q -m app.main", 0, False
 Set-Content -Path $Launcher -Value $vbs -Encoding Unicode   # UTF-16: works with any user name
 Start-Process wscript.exe -ArgumentList "`"$Launcher`""
 
+# Check the port directly on 127.0.0.1. (Invoke-WebRequest to "localhost" can try IPv6 or a proxy first and fail.)
+$LogFile = Join-Path $Dest 'server.log'
 $up = $false
-for ($i = 0; $i -lt 90; $i++) {
+for ($i = 0; $i -lt 120; $i++) {
     Start-Sleep -Seconds 1
+    $tcp = New-Object Net.Sockets.TcpClient
     try {
-        $r = Invoke-WebRequest "http://localhost:$Port/api/config" -UseBasicParsing -TimeoutSec 2
-        if ($r.StatusCode -eq 200) { $up = $true; break }
-    } catch { }
+        $tcp.Connect('127.0.0.1', $Port)
+        if ($tcp.Connected) { $up = $true }
+    } catch { } finally { $tcp.Close() }
+    if (-not $up -and (Test-Path $LogFile)) {
+        if (Select-String -Path $LogFile -Pattern 'VoiceGetter is running' -Quiet) { $up = $true }
+    }
+    if ($up) { break }
 }
 if ($up) {
     Info "VoiceGetter is running: http://localhost:$Port"
