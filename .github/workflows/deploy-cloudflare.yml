@@ -1,0 +1,77 @@
+# Deploy VoiceGetter to Cloudflare (Worker + Container + R2).
+# Run it from GitHub: Actions -> "Deploy to Cloudflare" -> Run workflow.
+# Needs these repository secrets (Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   API token that can edit Workers, Containers and R2
+#   CLOUDFLARE_ACCOUNT_ID  Your Cloudflare account ID
+#   VOICEGETTER_PASSWORD   The password for the VoiceGetter web page
+name: Deploy to Cloudflare
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: cloudflare
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      VOICEGETTER_PASSWORD: ${{ secrets.VOICEGETTER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -n "$VOICEGETTER_PASSWORD" ] || missing="$missing VOICEGETTER_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Add these repository secrets first:$missing"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+
+      - run: npm ci
+
+      - name: Check that the Colab notebook matches the code
+        working-directory: .
+        run: python3 tools/build_colab.py --check || echo "::warning::Colab notebook is out of date (run python tools/build_colab.py)"
+
+      - name: Create the R2 bucket (skipped if it exists)
+        run: |
+          if npx wrangler r2 bucket list | grep -q "voicegetter-results"; then
+            echo "Bucket exists"
+          else
+            npx wrangler r2 bucket create voicegetter-results
+          fi
+
+      - name: Deploy (builds the container image; takes 10-20 minutes)
+        run: |
+          jq -n --arg p "$VOICEGETTER_PASSWORD" '{PASSWORD: $p}' > "$RUNNER_TEMP/secrets.json"
+          set -o pipefail
+          npx wrangler deploy --secrets-file "$RUNNER_TEMP/secrets.json" 2>&1 | tee "$RUNNER_TEMP/deploy.log"
+          rm -f "$RUNNER_TEMP/secrets.json"
+
+      - name: Show the link
+        run: |
+          url=$(grep -oE "https://[a-zA-Z0-9.-]+\.workers\.dev" "$RUNNER_TEMP/deploy.log" | head -1)
+          {
+            echo "### ✅ Deployed"
+            echo ""
+            echo "Open this on your phone: ${url:-https://voicegetter.YOUR-SUBDOMAIN.workers.dev}"
+            echo ""
+            echo "The first start can take a few minutes while Cloudflare prepares the container."
+          } >> "$GITHUB_STEP_SUMMARY"

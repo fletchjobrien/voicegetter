@@ -2,7 +2,7 @@
 
 VoiceGetter takes a YouTube link and gives you an MP3 that has only the voice of the main speaker. It is made for long (2+ hour) gameplay videos, to get clean voice data to train a voice model.
 
-You control it from a web page on your phone. The processing runs on a computer (your PC, or Google Colab for free).
+You control it from a web page on your phone. The processing runs on a server: Cloudflare (always-on link), your own PC, or Google Colab (free).
 
 ## How it works
 
@@ -15,33 +15,56 @@ You control it from a web page on your phone. The processing runs on a computer 
 
 The video is processed in 5-minute chunks, so a 2+ hour video does not need a lot of memory.
 
-No accounts or API keys are necessary. The models download automatically the first time (about 400 MB).
+No AI accounts or API keys are necessary. The models download automatically (about 400 MB).
 
-## One-click link
+## Option A: Cloudflare (permanent link, no computer needed)
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/fletchjobrien/voicegetter/blob/3d0f8c0d1cd925e781e54f3e562a55e00625bc7c/colab/VoiceGetter.ipynb)
+This puts VoiceGetter on a permanent link like `https://voicegetter.YOUR-NAME.workers.dev`.
 
-This link opens the notebook of a fixed version (commit). After you change the code, make a new link: replace the commit ID in the link with the new commit ID.
+How it works on Cloudflare:
+- A **Worker** shows the web page and checks the password.
+- A **Cloudflare Container** runs the Python app (from `Dockerfile`). It starts when you submit a video, stays on while a job runs, and stops 10 minutes after the last job and the last use of the page. You pay only while it runs.
+- Finished MP3/ZIP files are saved in **R2** storage before the container stops. You can download them later (they are kept for 14 days, see `KEEP_DAYS` in `cloudflare/wrangler.jsonc`).
 
-This repository is private. The first time, Colab can ask you to **Authorize with GitHub** so that it can read the notebook. If you make the repository public, this step is not necessary.
+### What you need
+- A Cloudflare account with the **Workers Paid plan** ($5/month). Containers are not available on the free plan ([Containers pricing](https://developers.cloudflare.com/containers/pricing/)).
+- This GitHub repository.
 
-## Option A: Google Colab (phone only, free GPU)
+### Set up from your phone (GitHub Actions does the build)
+1. **Cloudflare account ID:** in the Cloudflare dashboard, open **Workers & Pages**. The account ID is on the right side of the page (or in the URL after `dash.cloudflare.com/`).
+2. **Cloudflare API token:** open **My Profile → API Tokens → Create Token**. Use the **Edit Cloudflare Workers** template. If the deploy fails with a permission error, edit the token and add **Containers: Edit** and **Workers R2 Storage: Edit** (account level).
+3. **GitHub secrets:** in this repository, open **Settings → Secrets and variables → Actions → New repository secret**, and add:
+   - `CLOUDFLARE_API_TOKEN`: the token from step 2
+   - `CLOUDFLARE_ACCOUNT_ID`: the ID from step 1
+   - `VOICEGETTER_PASSWORD`: a password you choose for the web page
+4. **Deploy:** open **Actions → Deploy to Cloudflare → Run workflow**. It takes about 10 to 20 minutes. The link is on the summary page of the run.
+5. Open the link on your phone and type your password. To skip the password next time, bookmark `https://YOUR-LINK/#key=YOUR-PASSWORD`.
 
-Use this if you do not have a computer with an NVIDIA GPU. It works from a phone.
+The first job after a deploy can wait a few minutes while Cloudflare prepares the container. To update after a code change, run the workflow again.
 
-1. Open the notebook in Colab with the **Open in Colab** link (see [One-click link](#one-click-link)).
-2. Tap ▶ on the cell. If Colab says "This notebook was not authored by Google", tap **Run anyway**.
-3. After about 5 minutes, the cell shows an **Open VoiceGetter** button. Tap it. The link includes the password, so you do not have to type it.
+### Set up from a computer (alternative)
+You need [Node.js](https://nodejs.org/) and [Docker](https://docs.docker.com/get-docker/) (running).
 
-The notebook has all the app code in it. It does not need a GitHub token. It selects a T4 GPU automatically.
+```bash
+cd cloudflare
+npm install
+npx wrangler login
+npx wrangler r2 bucket create voicegetter-results
+npx wrangler deploy
+npx wrangler secret put PASSWORD
+```
 
-Keep the Colab tab open. Colab stops a session after some time. See the [Colab FAQ](https://research.google.com/colaboratory/faq.html) for the limits.
+### Speed and cost on Cloudflare
+Cloudflare Containers have no GPU. The largest standard size (`standard-4`) has 4 vCPU and 12 GiB of memory, so everything runs on the CPU.
 
-**YouTube can block Colab.** YouTube often blocks downloads from cloud servers with the message "Sign in to confirm you're not a bot". If this occurs:
-- Export your YouTube cookies to a `cookies.txt` file and upload it (turn on `UPLOAD_COOKIES` in the cell, then tap ▶ again). The yt-dlp wiki tells you how: [How do I pass cookies to yt-dlp](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp). Use a second Google account, not your main account.
-- Or upload the audio/video file on the web page instead of a link.
+- The Demucs authors say that CPU processing takes about 1.5 times the length of the audio ([Demucs README](https://github.com/facebookresearch/demucs)). Thus a 2-hour video can take approximately 3 hours or more with **Remove game sound and music** on. This is an estimate, not a measurement on Cloudflare.
+- With **Remove game sound and music** off, a job is much faster, but game sound and music stay under the voice.
+- At the list prices, a running `standard-4` container costs approximately $0.40 per hour (4 vCPU × $0.000020/s + 12 GiB × $0.0000025/s, plus a small disk charge). The Workers Paid plan includes some usage each month ([Containers pricing](https://developers.cloudflare.com/containers/pricing/)).
+- You can close the page while a job runs. Come back later: the result stays available.
 
-## Option B: Your own computer (best for many videos)
+**YouTube can block Cloudflare servers.** If a job fails with "Sign in to confirm you're not a bot", open **YouTube says "not a bot"? Add cookies** on the web page and upload a `cookies.txt` file (see [How do I pass cookies to yt-dlp](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp)). The cookies are saved in R2 and used for all later jobs. Use a second Google account, not your main account.
+
+## Option B: Your own computer (fastest with an NVIDIA GPU)
 
 You need:
 - Python 3.10 to 3.13
@@ -74,6 +97,22 @@ set VOICEGETTER_PASSWORD=yourpassword && run.bat   # Windows
 python cli.py "https://www.youtube.com/watch?v=VIDEO_ID" --target female --out output
 python cli.py "https://..." --ref 12:30-13:00 --zip
 ```
+
+## Option C: Google Colab (free GPU, temporary link)
+
+Use this if you do not have a computer with an NVIDIA GPU. It works from a phone.
+
+1. Open `colab/VoiceGetter.ipynb` in [Google Colab](https://colab.research.google.com/): **File → Upload notebook** (on a phone: the **Upload** tab). Colab saves it in your Google Drive, so next time open it from there.
+2. Tap ▶ on the cell. If Colab says "This notebook was not authored by Google", tap **Run anyway**.
+3. After about 5 minutes, the cell shows an **Open VoiceGetter** button. Tap it. The link includes the password, so you do not have to type it.
+
+The notebook has all the app code in it. It does not need a GitHub token. It selects a T4 GPU automatically.
+
+Keep the Colab tab open. Colab stops a session after some time. See the [Colab FAQ](https://research.google.com/colaboratory/faq.html) for the limits.
+
+**YouTube can block Colab.** YouTube often blocks downloads from cloud servers with the message "Sign in to confirm you're not a bot". If this occurs:
+- Export your YouTube cookies to a `cookies.txt` file and upload it (turn on `UPLOAD_COOKIES` in the cell, then tap ▶ again). The yt-dlp wiki tells you how: [How do I pass cookies to yt-dlp](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp). Use a second Google account, not your main account.
+- Or upload the audio/video file on the web page instead of a link.
 
 ## Using the web page
 
@@ -125,6 +164,7 @@ The server does one job at a time. Other jobs wait in a queue.
 | `VOICEGETTER_DATA` | `./data` | Where jobs and results are stored |
 | `VOICEGETTER_MODELS` | `./models` | Where models are stored |
 | `VOICEGETTER_KEEP_HOURS` | `48` | Results older than this are deleted |
+| `VOICEGETTER_THREADS` | (all CPUs) | Number of CPU threads for PyTorch |
 | `PORT` | `8000` | Web server port |
 
 ## Troubleshooting
@@ -152,4 +192,8 @@ app/static/index.html  Phone web page
 cli.py               Command-line version
 colab/VoiceGetter.ipynb  Google Colab notebook (built by tools/build_colab.py)
 run.sh / run.bat     Start scripts
+Dockerfile           Container image (CPU) for Cloudflare or plain Docker
+cloudflare/          Cloudflare Worker + Container config (wrangler.jsonc, src/index.ts)
+.github/workflows/deploy-cloudflare.yml  One-tap deploy to Cloudflare
+tools/build_colab.py Builds the Colab notebook
 ```

@@ -25,6 +25,9 @@ DATA = Path(os.environ.get("VOICEGETTER_DATA", ROOT.parent / "data"))
 JOBS_DIR = DATA / "jobs"
 KEEP_HOURS = float(os.environ.get("VOICEGETTER_KEEP_HOURS", "48"))
 PASSWORD = os.environ.get("VOICEGETTER_PASSWORD", "")
+COOKIES_FILE = DATA / "cookies.txt"
+if not os.environ.get("VOICEGETTER_COOKIES") and COOKIES_FILE.is_file():
+    os.environ["VOICEGETTER_COOKIES"] = str(COOKIES_FILE)
 
 app = FastAPI(title="VoiceGetter")
 jobs: dict[str, dict] = {}
@@ -188,6 +191,23 @@ async def create_job(
     with lock:
         work.put(jid)
     return public(job)
+
+
+@app.post("/api/cookies")
+async def set_cookies(request: Request) -> dict:
+    """Save a Netscape cookies.txt (sent as the request body) for yt-dlp."""
+    auth(request)
+    text = (await request.body()).decode("utf-8", "replace")
+    if not text.strip():
+        COOKIES_FILE.unlink(missing_ok=True)
+        os.environ.pop("VOICEGETTER_COOKIES", None)
+        return {"ok": True, "cookies": False}
+    if "\t" not in text:
+        raise HTTPException(400, "This does not look like a cookies.txt file (Netscape format).")
+    COOKIES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    COOKIES_FILE.write_text(text, encoding="utf-8")
+    os.environ["VOICEGETTER_COOKIES"] = str(COOKIES_FILE)
+    return {"ok": True, "cookies": True}
 
 
 @app.get("/api/jobs")

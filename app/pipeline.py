@@ -132,6 +132,9 @@ def run_ffmpeg(args: list[str]) -> None:
 
 def pick_device() -> str:
     import torch
+    threads = os.environ.get("VOICEGETTER_THREADS")
+    if threads:  # In containers, torch can see all host CPUs and use too many threads.
+        torch.set_num_threads(int(threads))
     if torch.cuda.is_available():
         return "cuda"
     return "cpu"

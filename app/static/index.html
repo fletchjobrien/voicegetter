@@ -119,6 +119,18 @@
     <div class="err" id="formErr"></div>
   </form>
 
+  <details class="card" id="cookiesBox">
+    <summary>YouTube says "not a bot"? Add cookies</summary>
+    <p class="hint">YouTube can block servers. Export a <code>cookies.txt</code> file from a browser where you are signed in
+      to YouTube (use a second Google account), then upload it here. The server keeps it for later jobs.</p>
+    <input type="file" id="cookiesFile" accept=".txt,text/plain">
+    <div class="actions">
+      <button type="button" id="cookiesSave">Save cookies</button>
+      <button type="button" class="ghost" id="cookiesClear">Remove cookies</button>
+    </div>
+    <div class="hint" id="cookiesMsg"></div>
+  </details>
+
   <div id="jobs"></div>
 </main>
 
@@ -163,7 +175,7 @@ $("#form").onsubmit = async (e) => {
   fd.set("make_zip", $("#make_zip").checked);
   if (!$("#file").files.length) fd.delete("file");
   $("#go").disabled = true;
-  $("#go").textContent = $("#file").files.length ? "Uploading..." : "Starting...";
+  $("#go").textContent = $("#file").files.length ? "Uploading..." : "Starting (can take a minute)...";
   try {
     await api("/api/jobs", { method: "POST", body: fd });
     $("#url").value = "";
@@ -176,6 +188,22 @@ $("#form").onsubmit = async (e) => {
     $("#go").textContent = "Get voice";
   }
 };
+
+async function saveCookies(text) {
+  $("#cookiesMsg").textContent = "Saving...";
+  try {
+    const r = await api("/api/cookies", { method: "POST", headers: { "content-type": "text/plain" }, body: text });
+    $("#cookiesMsg").textContent = r.cookies ? "Cookies saved. Try your link again." : "Cookies removed.";
+  } catch (err) {
+    $("#cookiesMsg").textContent = err.message;
+  }
+}
+$("#cookiesSave").onclick = async () => {
+  const f = $("#cookiesFile").files[0];
+  if (!f) return ($("#cookiesMsg").textContent = "Choose a cookies.txt file first.");
+  saveCookies(await f.text());
+};
+$("#cookiesClear").onclick = () => saveCookies("");
 
 function fmt(sec) {
   sec = Math.round(sec || 0);

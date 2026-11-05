@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "voicegetter",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+
+  // The Python app runs in a Cloudflare Container built from ../Dockerfile.
+  // standard-4 = 4 vCPU, 12 GiB memory, 20 GB disk (the largest standard size; no GPU).
+  "containers": [
+    {
+      "class_name": "VoiceGetterContainer",
+      "image": "../Dockerfile",
+      "image_build_context": "..",
+      "instance_type": "standard-4",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "VOICEGETTER", "class_name": "VoiceGetterContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VoiceGetterContainer"] }],
+
+  // Finished MP3/ZIP files are kept here, so they survive when the container stops.
+  "r2_buckets": [{ "binding": "RESULTS", "bucket_name": "voicegetter-results" }],
+
+  "vars": {
+    // Days to keep finished results in R2.
+    "KEEP_DAYS": "14"
+  }
+  // Secret (not in this file): PASSWORD -> npx wrangler secret put PASSWORD
+}
